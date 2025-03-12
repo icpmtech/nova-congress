@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Congress Trades Dashboard</title>
+  <style>
+    /* Global Reset */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1a1a1a;
+      color: #f1f1f1;
+      margin: 20px;
+    }
+    a { color: #68b5ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .container { max-width: 1400px; margin: 0 auto; }
+    /* Header */
+    .trades-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 20px;
+    }
+    .trades-header h1 { font-size: 1.4rem; font-weight: 600; }
+    .trades-header .time-range { font-size: 0.95rem; color: #ccc; cursor: pointer; }
+    .trades-header .time-range:hover { color: #fff; }
+    /* Filter Bar */
+    .filter-bar {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      background-color: #2a2a2a; padding: 10px 15px;
+      border-radius: 6px; margin-bottom: 20px;
+    }
+    .filter-group {
+      display: flex; flex-direction: column; min-width: 160px;
+    }
+    .filter-group label { font-size: 0.75rem; color: #999; margin-bottom: 4px; }
+    .filter-group input, .filter-group select {
+      background-color: #1f1f1f; color: #ccc;
+      border: 1px solid #3a3a3a; border-radius: 4px;
+      padding: 6px 8px; font-size: 0.85rem; outline: none;
+    }
+    .filter-group input:hover, .filter-group select:hover { border-color: #555; }
+    /* Stats Bar */
+    .stats-bar { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 20px; }
+    .stats-box {
+      background-color: #2f2f2f; padding: 10px 15px;
+      border-radius: 5px; text-align: center; min-width: 100px;
+    }
+    .stats-box h3 { font-size: 1rem; margin-bottom: 5px; color: #fff; font-weight: 600; }
+    .stats-box span { font-size: 0.8rem; color: #ccc; }
+    /* Trades Table */
+    .trades-table-container {
+      background-color: #2f2f2f; border-radius: 6px; padding: 10px;
+    }
+    .trades-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; color: #ccc; }
+    .trades-table thead th {
+      background-color: #333; text-align: left; padding: 12px;
+      font-weight: 600; border-bottom: 1px solid #444;
+    }
+    .trades-table tbody td {
+      padding: 10px 12px; border-bottom: 1px solid #444; vertical-align: middle;
+    }
+    .trades-table tbody tr:hover { background-color: #3a3a3a; }
+    .politician-link { color: #68b5ff; }
+    /* Table Footer */
+    .table-footer {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 10px; color: #999; font-size: 0.85rem;
+    }
+    .table-footer .page-info { font-weight: 500; color: #ccc; }
+    .table-footer .show-entries { color: #ccc; }
+    .table-footer .show-entries select {
+      background-color: #1f1f1f; color: #ccc;
+      border: 1px solid #3a3a3a; border-radius: 4px;
+      padding: 4px 6px; font-size: 0.85rem; margin-left: 4px; outline: none;
+    }
+  </style>
+  <!-- Confetti library -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+  <script>
+    // Trigger confetti on load
+    document.addEventListener("DOMContentLoaded", function() {
+      setTimeout(() => {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          disableForReducedMotion: true
+        });
+      }, 500);
+    });
+
+    // Function to open details page with trade details passed as query parameters
+    function openTradeDetails(trade) {
+      const queryParams = new URLSearchParams({
+        legislator: trade.legislator,
+        ticker: trade.ticker || "",
+        transaction: trade.transaction,
+        date: trade.date,
+        amount: trade.amount
+      }).toString();
+      // Adjust the URL to match your details page path (e.g., "/details" or "details.html")
+      window.location.href = `/details?${queryParams}`;
+    }
+
+    // Fetch trades and populate table
+    function fetchTrades() {
+      const legislator = document.getElementById("legislator").value;
+      const ticker = document.getElementById("ticker").value;
+      const transaction = document.getElementById("transaction").value;
+
+      let query = "?";
+      if (legislator) query += "legislator=" + encodeURIComponent(legislator) + "&";
+      if (ticker) query += "ticker=" + encodeURIComponent(ticker) + "&";
+      if (transaction) query += "transaction=" + encodeURIComponent(transaction) + "&";
+
+      fetch("/trades" + query)
+        .then(response => response.json())
+        .then(data => {
+          const tradesBody = document.getElementById("trades-body");
+          tradesBody.innerHTML = "";
+          data.trades.forEach(trade => {
+            const row = document.createElement("tr");
+            // On row click, open the details page with the trade info
+            row.style.cursor = "pointer";
+            row.addEventListener("click", () => openTradeDetails(trade));
+
+            // Politician
+            const politicianTd = document.createElement("td");
+            politicianTd.innerHTML = `
+              <a class="politician-link" href="#">${trade.legislator}</a><br>
+              <span style="font-size: 0.8rem; color: #999;">(Party/Chamber/State?)</span>
+            `;
+            row.appendChild(politicianTd);
+
+            // Issuer (Ticker)
+            const issuerTd = document.createElement("td");
+            issuerTd.textContent = trade.ticker || "N/A";
+            row.appendChild(issuerTd);
+
+            // Published (mock)
+            const publishedTd = document.createElement("td");
+            publishedTd.innerHTML = `
+              N/A<br><span style="font-size:0.8rem;">(No date?)</span>
+            `;
+            row.appendChild(publishedTd);
+
+            // Traded
+            const tradedTd = document.createElement("td");
+            tradedTd.textContent = trade.date;
+            row.appendChild(tradedTd);
+
+            // Filed After (mock)
+            const filedAfterTd = document.createElement("td");
+            filedAfterTd.textContent = "N/A";
+            row.appendChild(filedAfterTd);
+
+            // Owner (mock)
+            const ownerTd = document.createElement("td");
+            ownerTd.textContent = "N/A";
+            row.appendChild(ownerTd);
+
+            // Transaction
+            const typeTd = document.createElement("td");
+            typeTd.textContent = trade.transaction.toUpperCase();
+            typeTd.style.color = trade.transaction.toLowerCase() === "buy" ? "#6ada6a" : "#f08383";
+            row.appendChild(typeTd);
+
+            // Size
+            const sizeTd = document.createElement("td");
+            sizeTd.textContent = trade.amount;
+            row.appendChild(sizeTd);
+
+            // Price (mock)
+            const priceTd = document.createElement("td");
+            priceTd.textContent = "N/A";
+            row.appendChild(priceTd);
+
+            tradesBody.appendChild(row);
+          });
+        })
+        .catch(error => {
+          console.error("Error fetching trades:", error);
+        });
+    }
+
+    // On page load, fetch trades
+    window.onload = function() {
+      fetchTrades();
+    };
+  </script>
+</head>
+<body>
+  <div class="container">
+    <!-- HEADER -->
+    <div class="trades-header">
+      <h1>TRADES</h1>
+      <div class="time-range">1 YEAR ▼</div>
+    </div>
+
+    <!-- FILTER BAR -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label for="legislator">Find by Politician</label>
+        <input id="legislator" type="text" placeholder="e.g. Pelosi" />
+      </div>
+      <div class="filter-group">
+        <label for="ticker">Find by Issuer (Ticker)</label>
+        <input id="ticker" type="text" placeholder="e.g. AAPL" />
+      </div>
+      <div class="filter-group">
+        <label for="transaction">Transaction Type</label>
+        <select id="transaction">
+          <option value="">All</option>
+          <option value="buy">Buy</option>
+          <option value="sell">Sell</option>
+        </select>
+      </div>
+      <div class="filter-group" style="align-self: flex-end;">
+        <button style="padding: 8px 16px; cursor: pointer;" onclick="fetchTrades()">Search</button>
+      </div>
+    </div>
+
+    <!-- STATS BAR (Static Example) -->
+    <div class="stats-bar">
+      <div class="stats-box">
+        <h3>--</h3>
+        <span>Trades</span>
+      </div>
+      <div class="stats-box">
+        <h3>--</h3>
+        <span>Filings</span>
+      </div>
+      <div class="stats-box">
+        <h3>--</h3>
+        <span>Volume</span>
+      </div>
+      <div class="stats-box">
+        <h3>--</h3>
+        <span>Politicians</span>
+      </div>
+      <div class="stats-box">
+        <h3>--</h3>
+        <span>Issuers</span>
+      </div>
+    </div>
+
+    <!-- TRADES TABLE -->
+    <div class="trades-table-container">
+      <table class="trades-table">
+        <thead>
+          <tr>
+            <th>Politician</th>
+            <th>Issuer</th>
+            <th>Published</th>
+            <th>Traded</th>
+            <th>Filed After</th>
+            <th>Owner</th>
+            <th>Type</th>
+            <th>Size</th>
+            <th>Price</th>
+          </tr>
+        </thead>
+        <tbody id="trades-body">
+          <!-- Rows populated dynamically via fetchTrades() -->
+        </tbody>
+      </table>
+      <div class="table-footer">
+        <div class="page-info">Page 1 of 1</div>
+        <div class="show-entries">
+          Show 
+          <select>
+            <option>10</option>
+            <option>25</option>
+            <option>50</option>
+            <option>100</option>
+          </select>
+          entries
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
